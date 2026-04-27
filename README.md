@@ -2,8 +2,7 @@
 
 An interactive Streamlit tool that examines the relationship between **GDP growth rate** and **unemployment** across eight countries, based on Okun's Law.
 
-ACC102 Mini Assignment · Track 4 · Xi'an Jiaotong-Liverpool University 
-Live App: https://acc102track4.streamlit.app
+ Live App🔗https://acc102track4.streamlit.app
 ---
 
 ## Analytical Problem
