@@ -77,26 +77,40 @@ h1, h2, h3 {
 @st.cache_data(show_spinner="Loading World Bank data…")
 def load_data():
     try:
-        import pandas_datareader.wb as wb
-        countries = ['CN', 'US', 'GB', 'JP', 'DE', 'FR', 'IN', 'BR']
-        gdp = wb.download(
-            indicator='NY.GDP.MKTP.KD.ZG',
-            country=countries, start=1991, end=2023
-        ).rename(columns={'NY.GDP.MKTP.KD.ZG': 'GDP_growth'})
-        unem = wb.download(
-            indicator='SL.UEM.TOTL.ZS',
-            country=countries, start=1991, end=2023
-        ).rename(columns={'SL.UEM.TOTL.ZS': 'Unemployment'})
-        df = gdp.join(unem).reset_index()
-        df['year'] = df['year'].astype(int)
-        df = df.dropna()
-        # Delta unemployment (change from prior year)
+        import requests
+
+        COUNTRIES = ['CN', 'US', 'GB', 'JP', 'DE', 'FR', 'IN', 'BR']
+        country_str = ';'.join(COUNTRIES)
+
+        def fetch_indicator(indicator):
+            url = (
+                f"https://api.worldbank.org/v2/country/{country_str}/indicator/{indicator}"
+                f"?format=json&date=1991:2023&per_page=1000"
+            )
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            rows = []
+            for item in data[1]:
+                if item['value'] is not None:
+                    rows.append({
+                        'country': item['country']['value'],
+                        'year': int(item['date']),
+                        'value': float(item['value'])
+                    })
+            return pd.DataFrame(rows)
+
+        gdp  = fetch_indicator('NY.GDP.MKTP.KD.ZG').rename(columns={'value': 'GDP_growth'})
+        unem = fetch_indicator('SL.UEM.TOTL.ZS').rename(columns={'value': 'Unemployment'})
+
+        df = pd.merge(gdp, unem, on=['country', 'year'], how='inner')
         df = df.sort_values(['country', 'year'])
         df['Delta_U'] = df.groupby('country')['Unemployment'].diff()
         df = df.dropna()
         return df
+
     except Exception as e:
-        st.error(f"Could not fetch live data: {e}\nUsing bundled sample data.")
+        st.error(f"Could not fetch live data: {e}  Using bundled sample data.")
         return None
 
 @st.cache_data(show_spinner=False)
